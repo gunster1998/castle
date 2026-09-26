@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { mergeCharacter, flattenStatic } from './merge'
+import { mergeCharacter, mergeColoredCharacter, flattenStatic, bakeColored } from './merge'
 import type { GameState, Unit, Building, Team, Race, Strike } from './types'
 import { UNIT_TYPES, BUILDING_TYPES, CASTLE_GUNS } from './data'
 import { BASE_ZONE, BUILDING_SPACING, canPlace } from './placement'
@@ -213,7 +213,10 @@ export function initRenderer(canvas: HTMLCanvasElement) {
     perf() {
       const kinds: Record<string, number> = {}
       scene.traverse(o => { const k = (o as THREE.InstancedMesh).isInstancedMesh ? 'InstancedMesh' : o.type; kinds[k] = (kinds[k] || 0) + 1 })
-      return { quality, sceneChildren: scene.children.length, kinds, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, fps: Math.round(fpsAvg), frameMs: +frameMsAvg.toFixed(2), units: unitViews.size, buildings: buildingViews.size, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }
+      // сколько сеток у каждого юнита (для проверки склейки)
+      const perUnit: Record<string, number> = {}
+      for (const v of unitViews.values()) { let n = 0; v.root.traverse(o => { if ((o as THREE.Mesh).isMesh) n++ }); perUnit[v.typeId] = n }
+      return { quality, sceneChildren: scene.children.length, kinds, perUnit, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, fps: Math.round(fpsAvg), frameMs: +frameMsAvg.toFixed(2), units: unitViews.size, buildings: buildingViews.size, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }
     },
     toScreen(x: number, y: number) {
       const v = new THREE.Vector3(wx(x), 0, wz(y)).project(camera)
@@ -622,20 +625,10 @@ function unitTemplate(typeId: string, vis: UnitVisual, g: GLTF): THREE.Object3D 
     const slot = t.getObjectByName(a.slot)
     slot?.add(asset(a.asset)!.scene.clone(true))
   }
-  // у моделей Quaternius металличность 1 — без карты окружения они выходят почти чёрными
-  if (vis.ownAnims) t.traverse(o => {
-    const m = o as THREE.Mesh
-    if (!m.isMesh) return
-    const fix = (mat: THREE.Material) => {
-      const c = (mat as THREE.MeshStandardMaterial).clone()
-      c.metalness = 0
-      c.roughness = Math.max(0.6, c.roughness)
-      return c
-    }
-    m.material = Array.isArray(m.material) ? m.material.map(fix) : fix(m.material)
-  })
-  // склейка — только для KayKit: у моделей Quaternius оружие привязано к скелету иначе и «отрывается»
-  if (!vis.ownAnims) mergeCharacter(t)
+  // KayKit — склейка по материалам (текстура общая); Quaternius — цвета частей в вершины, одна сетка на юнита
+  // (там же металличность в 0: без карты окружения она делает модели почти чёрными)
+  if (vis.ownAnims) mergeColoredCharacter(t)
+  else mergeCharacter(t)
   // скрытое запасное оружие из набора не нужно копировать в каждого юнита
   const hidden: THREE.Object3D[] = []
   t.traverse(o => { if ((o as THREE.Mesh).isMesh && !o.visible) hidden.push(o) })
@@ -671,6 +664,9 @@ function paint(m: THREE.Material, race: Race): THREE.Material {
   return c
 }
 
+const vehicleHulls = new Map<string, THREE.BufferGeometry | null>()
+const vehicleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0.35 })
+
 /** Танк или самоходка: модель Quaternius (гусеницы анимированы), ствол откатывается при выстреле. */
 function createVehicleView(typeId: string, vis: UnitVisual): UnitView {
   const g = asset('tank')!
@@ -692,6 +688,24 @@ function createVehicleView(typeId: string, vis: UnitVisual): UnitView {
     pivot.scale.set(1.6, 1.25, 1.25)
     pivot.rotation.z = -0.42
     model.getObjectByName('Tank_Turret')?.scale.multiplyScalar(1.12)
+  }
+  // корпус с колёсами и гусеницы (анимированы через скелет) — одна сетка, башня — вторая, ствол (откат) — третий:
+  // 3 вызова отрисовки на машину вместо 11
+  mergeColoredCharacter(model, `vehicle:${vis.paint}`)
+  model.updateMatrixWorld(true)
+  const statics: THREE.Mesh[] = []
+  model.traverse(o => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return
+    for (let p: THREE.Object3D | null = m; p; p = p.parent) if (p === pivot) return
+    statics.push(m)
+  })
+  const key = `${vis.paint}:${vis.vehicle}`
+  let hullGeo = vehicleHulls.get(key)
+  if (hullGeo === undefined) { hullGeo = bakeColored(statics, model); vehicleHulls.set(key, hullGeo) }
+  if (hullGeo) {
+    for (const m of statics) m.parent?.remove(m)
+    model.add(new THREE.Mesh(hullGeo, vehicleMat))
   }
   // модель смотрит вдоль −X — поворачиваем носом вперёд (+Z)
   const holder = new THREE.Group()

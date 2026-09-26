@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 type Attrs = 'position' | 'normal' | 'uv'
 
 /** Геометрия с одинаковым набором атрибутов (float, без нормализации) и индексом — чтобы её можно было склеить. */
-function normalized(src: THREE.BufferGeometry, skin: boolean): THREE.BufferGeometry {
+function normalized(src: THREE.BufferGeometry, skin: boolean, color?: THREE.Color): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry()
   const n = src.attributes.position.count
   const f32 = (name: Attrs, size: number) => {
@@ -27,6 +27,11 @@ function normalized(src: THREE.BufferGeometry, skin: boolean): THREE.BufferGeome
     }
     g.setAttribute('skinIndex', new THREE.BufferAttribute(idx, 4))
     g.setAttribute('skinWeight', new THREE.BufferAttribute(w, 4))
+  }
+  if (color) {
+    const col = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) col.set([color.r, color.g, color.b], i * 3)
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3))
   }
   const index = src.index
     ? Array.from(src.index.array as ArrayLike<number>)
@@ -170,4 +175,103 @@ export function flattenStatic(group: THREE.Object3D): THREE.Group {
     out.add(mesh)
   }
   return out
+}
+
+/**
+ * Персонаж, у которого цвета — в материалах частей (модели Quaternius): все части склеиваются
+ * в одну SkinnedMesh с цветом в вершинах — один вызов отрисовки на юнита вместо десятка.
+ * У частей бывает своя поза привязки к костям (оружие): каждую вершину пересчитываем в позу
+ * общего скелета по её главной кости — иначе оружие «отрывается» от руки.
+ */
+export function mergeColoredCharacter(root: THREE.Object3D, cacheKey?: string): void {
+  root.updateMatrixWorld(true)
+  const skinned: THREE.SkinnedMesh[] = []
+  root.traverse(o => { const m = o as THREE.SkinnedMesh; if (m.isSkinnedMesh && visibleInTree(m, root)) skinned.push(m) })
+  if (!skinned.length) return
+  const first = skinned[0]
+  const skeleton = first.skeleton
+  // одинаковые копии модели (техника) — геометрию считаем один раз
+  const cached = cacheKey ? coloredGeo.get(cacheKey) : undefined
+  if (cached) { attachColored(root, skinned, cached); return }
+  const bindInv = first.bindMatrix.clone().invert()
+  const geos: THREE.BufferGeometry[] = []
+  const bindOf = skeleton.boneInverses.map(m => m.clone().invert()) // поза привязки общего скелета
+  const tmp = new THREE.Vector3(), m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3()
+  for (const sm of skinned) {
+    const mats = Array.isArray(sm.material) ? sm.material : [sm.material]
+    const groups = sm.geometry.groups.length ? sm.geometry.groups : [{ start: 0, count: Infinity, materialIndex: 0 }]
+    const remap = sm.skeleton.bones.map(b => skeleton.bones.indexOf(b))
+    if (remap.some(i => i < 0)) return
+    // своя поза этой части → поза общего скелета, для каждой кости
+    const fix = sm.skeleton.boneInverses.map((inv, j) => new THREE.Matrix4()
+      .copy(bindInv).multiply(bindOf[remap[j]]).multiply(inv).multiply(sm.bindMatrix))
+    for (const gr of groups) {
+      const mat = mats[gr.materialIndex ?? 0] as THREE.MeshStandardMaterial
+      const part = gr.count === Infinity || !sm.geometry.index ? sm.geometry : subGeometry(sm.geometry, gr.start, gr.count)
+      const geo = normalized(part, true, mat.color ?? new THREE.Color('#ffffff'))
+      const pos = geo.getAttribute('position') as THREE.BufferAttribute
+      const nor = geo.getAttribute('normal') as THREE.BufferAttribute
+      const si = geo.getAttribute('skinIndex') as THREE.BufferAttribute
+      const sw = geo.getAttribute('skinWeight') as THREE.BufferAttribute
+      for (let i = 0; i < pos.count; i++) {
+        // главная кость вершины
+        let best = 0
+        for (let k = 1; k < 4; k++) if (sw.getComponent(i, k) > sw.getComponent(i, best)) best = k
+        const j = si.getComponent(i, best)
+        m4.copy(fix[j])
+        tmp.fromBufferAttribute(pos, i).applyMatrix4(m4)
+        pos.setXYZ(i, tmp.x, tmp.y, tmp.z)
+        n3.getNormalMatrix(m4)
+        tmp.fromBufferAttribute(nor, i).applyMatrix3(n3).normalize()
+        nor.setXYZ(i, tmp.x, tmp.y, tmp.z)
+        for (let k = 0; k < 4; k++) si.setComponent(i, k, remap[si.getComponent(i, k)])
+      }
+      geos.push(geo)
+    }
+  }
+  const merged = mergeGeometries(geos, false)
+  if (!merged) return
+  if (cacheKey) coloredGeo.set(cacheKey, merged)
+  attachColored(root, skinned, merged)
+}
+const colored = new Map<string, THREE.Material>()
+const coloredGeo = new Map<string, THREE.BufferGeometry>()
+
+function attachColored(root: THREE.Object3D, skinned: THREE.SkinnedMesh[], geo: THREE.BufferGeometry) {
+  const first = skinned[0]
+  const parent = first.parent ?? root
+  const bindMatrix = first.bindMatrix.clone()
+  for (const m of skinned) m.parent?.remove(m)
+  const src = (Array.isArray(first.material) ? first.material[0] : first.material) as THREE.MeshStandardMaterial
+  const key = `vc|${src.roughness}|${src.metalness}`
+  let mat = colored.get(key)
+  if (!mat) {
+    mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: Math.max(0.6, src.roughness), metalness: Math.min(0.3, src.metalness) })
+    colored.set(key, mat)
+  }
+  const mesh = new THREE.SkinnedMesh(geo, mat)
+  mesh.castShadow = false
+  parent.add(mesh)
+  mesh.bind(first.skeleton, bindMatrix)
+}
+
+/** Часть индексированной геометрии (одна группа материала). */
+function subGeometry(g: THREE.BufferGeometry, start: number, count: number): THREE.BufferGeometry {
+  const out = g.clone()
+  out.setIndex(Array.from((g.index!.array as ArrayLike<number>)).slice(start, start + count))
+  out.clearGroups()
+  return out
+}
+
+/** Неподвижные части (у каждой свой материал-цвет) → одна геометрия с цветом в вершинах, в системе координат relativeTo. */
+export function bakeColored(meshes: THREE.Mesh[], relativeTo: THREE.Object3D): THREE.BufferGeometry | null {
+  relativeTo.updateMatrixWorld(true)
+  const inv = relativeTo.matrixWorld.clone().invert()
+  const geos = meshes.map(m => {
+    const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial
+    const g = normalized(m.geometry, false, mat.color ?? new THREE.Color('#ffffff'))
+    g.applyMatrix4(inv.clone().multiply(m.matrixWorld))
+    return g
+  })
+  return mergeGeometries(geos, false)
 }
