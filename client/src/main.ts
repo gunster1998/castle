@@ -316,6 +316,7 @@ setInterval(() => {
 initRenderer(canvas)
 // отладка/тесты: текущее состояние партии
 ;(window as unknown as { __castle: Record<string, unknown> }).__castle.state = () => gameState
+;(window as unknown as { __castle: Record<string, unknown> }).__castle.net = () => ({ worker: ws.usingWorker, connected: ws.connected, dropped: ws.droppedStates })
 
 canvas.addEventListener('mousemove', e => {
   if (!gameState || gameState.phase !== 'playing') { hover = null; return }
