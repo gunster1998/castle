@@ -1,0 +1,10 @@
+{
+  "name": "castle-fight",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev"
+  }
+}

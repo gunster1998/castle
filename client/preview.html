@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Битва Замков — предпросмотр 3D</title>
+  <style>
+    body { margin: 0; background: #0d0d1a; overflow: hidden; }
+    #game { display: flex; flex-direction: column; height: 100vh; }
+    #canvas { display: block; }
+    #hud { height: 60px; background: #0d0d1a; border-top: 1px solid #333; color: #aaa; font: 13px Consolas, monospace; display: flex; align-items: center; padding: 0 16px; }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <canvas id="canvas"></canvas>
+    <div id="hud">Предпросмотр: имитация боя без сервера. Колесо — масштаб, правая кнопка — сдвиг, средняя — поворот.</div>
+  </div>
+  <script type="module" src="/src/preview.ts"></script>
+</body>
+</html>
