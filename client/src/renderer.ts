@@ -634,7 +634,8 @@ function unitTemplate(typeId: string, vis: UnitVisual, g: GLTF): THREE.Object3D 
     }
     m.material = Array.isArray(m.material) ? m.material.map(fix) : fix(m.material)
   })
-  mergeCharacter(t)
+  // склейка — только для KayKit: у моделей Quaternius оружие привязано к скелету иначе и «отрывается»
+  if (!vis.ownAnims) mergeCharacter(t)
   // скрытое запасное оружие из набора не нужно копировать в каждого юнита
   const hidden: THREE.Object3D[] = []
   t.traverse(o => { if ((o as THREE.Mesh).isMesh && !o.visible) hidden.push(o) })

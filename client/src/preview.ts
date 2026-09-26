@@ -51,6 +51,18 @@ if (params.has('showcase')) {
   })
 }
 
+// парад: ?parade=orc — юниты одной расы идут строем без противника (посмотреть анимации)
+const parade = params.get('parade')
+if (parade) {
+  state.units = []
+  state.buildings = []
+  const types = [...new Set(BUILDINGS_BY_RACE[parade as keyof typeof BUILDINGS_BY_RACE].map(b => BUILDING_TYPES[b].unitTypeId).filter(Boolean))]
+  types.forEach((t, i) => {
+    const ut = UNIT_TYPES[t]
+    state.units.push({ id: String(uid++), typeId: t, team: 'west', x: 900, y: 420 + i * 60, hp: ut.hp, maxHp: ut.hp, attackCooldown: 0, level: 1, ownerId: '', lane: 1, wp: 0 })
+  })
+}
+
 // нагрузочный режим: ?stress=N — N юнитов и по 15 зданий у каждой команды
 const stress = Number(params.get('stress') || 0)
 if (stress) {
@@ -91,9 +103,9 @@ function step() {
         if (u.attackCooldown === 0) { c.hp -= t.damage; u.attackCooldown = t.attackInterval; if (c.hp <= 0) dead.add(c.id) }
       } else move(c.x, c.y)
     } else {
-      const cx = u.team === 'west' ? 1540 : 60
+      const cx = u.team === 'west' ? 2520 : 80
       if (Math.abs(u.x - cx) < 80) { state.castles[u.team === 'west' ? 'east' : 'west'].hp -= t.damage * 2; dead.add(u.id) }
-      else move(cx, 400)
+      else move(cx, 600)
     }
   }
   state.units = state.units.filter(u => !dead.has(u.id))
