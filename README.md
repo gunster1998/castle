@@ -41,3 +41,5 @@ npm run dev:client    # http://localhost:5173
 
 - [KayKit](https://kaylousberg.com) (Kay Lousberg): Adventurers, Skeletons, Medieval Hexagon, Halloween Bits — CC0.
 - [Quaternius Universal Animation Library](https://quaternius.com) — CC0 (используется в прототипах).
+- [Quaternius](https://quaternius.com) через [Poly Pizza](https://poly.pizza): танк (техника), монстры Орды (орк, дух-тотем, демон, йети, дракон) — CC0. Файлы — `client/public/assets/tank.glb`, `m_*.glb`.
+- [Kenney](https://kenney.nl): Impact Sounds, Interface Sounds, Music Jingles, RPG Audio, Sci-fi Sounds — CC0. Звуки собираются `cd client && npm run sounds` в `client/public/sfx`.

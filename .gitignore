@@ -16,3 +16,4 @@ client/.asset-cache/
 prototype-3d/*
 !prototype-3d/blender/
 !prototype-3d/build_*.py
+server/logs/

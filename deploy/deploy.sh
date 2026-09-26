@@ -11,6 +11,7 @@ rsync -az deploy/server.cjs deploy/castlefight3d.service "$HOST:/opt/castlefight
 ssh "$HOST" 'set -e
   install -m 644 /opt/castlefight3d/castlefight3d.service /etc/systemd/system/castlefight3d.service
   chown -R castlefight3d:castlefight3d /opt/castlefight3d/dist /opt/castlefight3d/server.cjs
+  install -d -o castlefight3d -g castlefight3d /opt/castlefight3d/logs
   systemctl daemon-reload
   systemctl enable --now castlefight3d.service
   systemctl restart castlefight3d.service

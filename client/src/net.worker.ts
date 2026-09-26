@@ -2,19 +2,21 @@
 // Состояния партии отдаются «по готовности»: пока главный поток не подтвердил предыдущее,
 // новые не копятся в очереди — хранится только самое свежее.
 /// <reference lib="webworker" />
-import type { ServerMsg } from './types'
+import { unpackState, type ServerMsg } from './types'
 
 type In =
   | { kind: 'connect'; url: string }
   | { kind: 'send'; data: string }
   | { kind: 'ack' }
   | { kind: 'close' }
+  | { kind: 'status' }
 
 type Out =
   | { kind: 'open' }
-  | { kind: 'closed' }
+  | { kind: 'closed'; code: number }
   | { kind: 'msg'; msg: ServerMsg }
   | { kind: 'state'; msg: ServerMsg; dropped: number }
+  | { kind: 'status'; open: boolean }
 
 const post = (m: Out) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(m)
 
@@ -51,6 +53,7 @@ function connect() {
       return
     }
     if (msg.type === 'state') {
+      unpackState(msg.state)
       if (pending) dropped++
       pending = msg
       flushState()
@@ -60,11 +63,12 @@ function connect() {
       post({ kind: 'msg', msg })
     }
   }
-  ws.onclose = () => {
-    post({ kind: 'closed' })
+  ws.onclose = ev => {
+    post({ kind: 'closed', code: ev.code })
     pending = null
     waitingAck = false
-    if (!closing) reconnectTimer = setTimeout(connect, 2000)
+    // 4000 — игру забрала другая вкладка: не переподключаемся
+    if (!closing && ev.code !== 4000) reconnectTimer = setTimeout(connect, 2000)
   }
 }
 
@@ -83,6 +87,9 @@ self.onmessage = (ev: MessageEvent<In>) => {
     case 'ack':
       waitingAck = false
       flushState()
+      break
+    case 'status':
+      post({ kind: 'status', open: ws?.readyState === WebSocket.OPEN })
       break
     case 'close':
       closing = true

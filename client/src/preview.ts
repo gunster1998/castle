@@ -14,12 +14,14 @@ const state: GameState = {
   roomId: 'preview', roomName: 'Предпросмотр',
   tick: 0, phase: 'playing', round: 1, maxRounds: 3, wins: { west: 0, east: 0 },
   castles: { west: { hp: 3000, maxHp: 3000 }, east: { hp: 3000, maxHp: 3000 } },
-  units: [], buildings: [],
+  units: [], buildings: [], strikes: [], auras: { west: { damage: 0, speed: 0 }, east: { damage: 0, speed: 0 } },
   players: [
-    { id: 'p1', name: 'Люди', team: 'west', race: 'human', gold: 400, lumber: 0, ready: true, connected: true },
-    { id: 'p2', name: 'Нежить', team: 'east', race: 'undead', gold: 400, lumber: 0, ready: true, connected: true },
+    { id: 'p1', name: 'Люди', team: 'west', race: 'human', gold: 400, lumber: 0, ready: true, connected: true, strikeUsed: false, nukes: 1, stats: { kills: 0, lost: 0, castleDmg: 0, trained: 0, built: 0, spent: 0, strikeKills: 0, towerKills: 0 } },
+    { id: 'p2', name: 'Нежить', team: 'east', race: 'undead', gold: 400, lumber: 0, ready: true, connected: true, strikeUsed: false, nukes: 1, stats: { kills: 0, lost: 0, castleDmg: 0, trained: 0, built: 0, spent: 0, strikeKills: 0, towerKills: 0 } },
   ],
   roundEndTimer: 0,
+  // ?night, ?rain — посмотреть погоду
+  conditions: { night: params.has('night'), rain: params.has('rain') },
 }
 
 function addBuilding(team: Team, typeId: string, x: number, y: number) {
@@ -37,14 +39,15 @@ BUILDINGS_BY_RACE.undead.forEach((t, i) => addBuilding('east', t, 1370 - (i % 2)
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y)
 function spawn(b: Building) {
   const ut = UNIT_TYPES[BUILDING_TYPES[b.typeId].unitTypeId]
-  state.units.push({ id: String(uid++), typeId: ut.id, team: b.team, x: b.x + (b.team === 'west' ? 40 : -40), y: b.y, hp: ut.hp, maxHp: ut.hp, attackCooldown: 0, level: b.level })
+  if (!ut) return // башня
+  state.units.push({ id: String(uid++), typeId: ut.id, team: b.team, x: b.x + (b.team === 'west' ? 40 : -40), y: b.y, hp: ut.hp, maxHp: ut.hp, attackCooldown: 0, level: b.level, ownerId: '', lane: 1, wp: 0 })
 }
 // сразу по одному юниту каждого типа, если просили витрину
 if (params.has('showcase')) {
   const types = Object.keys(UNIT_TYPES)
   types.forEach((t, i) => {
     const ut = UNIT_TYPES[t]
-    state.units.push({ id: String(uid++), typeId: t, team: i < 4 ? 'west' : 'east', x: 640 + (i % 4) * 110, y: i < 4 ? 340 : 460, hp: ut.hp * 0.7, maxHp: ut.hp, attackCooldown: 0, level: 1 })
+    state.units.push({ id: String(uid++), typeId: t, team: i % 2 ? 'east' : 'west', x: 1300 - 330 + (i % 6) * 130, y: 600 - 240 + Math.floor(i / 6) * 120, hp: ut.hp * 0.7, maxHp: ut.hp, attackCooldown: 0, level: 1, ownerId: '', lane: 1, wp: 0 })
   })
 }
 
@@ -61,7 +64,7 @@ if (stress) {
     const t = types[i % types.length]
     const ut = UNIT_TYPES[t]
     const team: Team = i % 2 ? 'west' : 'east'
-    state.units.push({ id: String(uid++), typeId: t, team, x: 500 + Math.random() * 600, y: 280 + Math.random() * 240, hp: ut.hp * 5, maxHp: ut.hp * 5, attackCooldown: 0, level: 1 })
+    state.units.push({ id: String(uid++), typeId: t, team, x: 500 + Math.random() * 600, y: 280 + Math.random() * 240, hp: ut.hp * 5, maxHp: ut.hp * 5, attackCooldown: 0, level: 1, ownerId: '', lane: 1, wp: 0 })
   }
 }
 

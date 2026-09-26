@@ -36,7 +36,7 @@
     label.field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
     input[type=text], select { background: #0f131c; border: 1px solid #394157; color: var(--ink); padding: 10px 12px; border-radius: 8px; font-size: 15px; width: 100%; }
     input:focus, select:focus { outline: none; border-color: var(--gold); }
-    .races { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .races { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
     .race { background: #121724; border: 2px solid #313a50; border-radius: 10px; padding: 12px; cursor: pointer; text-align: left; color: var(--ink); display: grid; gap: 4px; }
     .race b { font-family: var(--display); font-size: 16px; }
     .race span { font-size: 12px; color: var(--muted); line-height: 1.35; }
@@ -122,10 +122,87 @@
     .hud-btn.green { background: #1c5a2a; border-color: #46d36a; }
     .hud-btn:hover { border-color: var(--gold); }
 
+    /* ── Суперудар ─────────────────────────────────────────────────── */
+    .strike-btn { display: flex; flex-direction: column; align-items: center; padding: 6px 12px; font-size: 12px; min-width: 120px; cursor: pointer;
+      background: linear-gradient(#3a1d0c, #24120a); border: 1px solid #c8641e; border-radius: 8px; color: #ffe2b8; }
+    .strike-btn b { font-size: 13px; letter-spacing: .5px; }
+    .strike-btn span { color: #e8a36a; font-size: 11px; }
+    .strike-btn:hover:not(:disabled) { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,140,50,.45); }
+    .strike-btn.aiming { border-color: var(--gold); box-shadow: 0 0 14px rgba(255,190,80,.7); background: #4a2a0c; }
+    .strike-btn.nuke { background: linear-gradient(#3a0c0c, #220808); border-color: #d23a2a; color: #ffd0c4; }
+    .strike-btn.nuke span { color: #ff9a86; }
+    .strike-btn:disabled { opacity: .4; cursor: default; filter: grayscale(.7); }
+
+    #notify { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 15; display: grid; gap: 6px; justify-items: center;
+      width: min(520px, calc(100vw - 32px)); pointer-events: none; }
+    #notify .note { padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 14px; background: rgba(14,16,24,.9);
+      border: 1px solid #c8961e; color: #ffe2a8; box-shadow: 0 6px 20px rgba(0,0,0,.4); transition: opacity .8s; text-align: center; }
+    #notify .note.danger { border-color: #e0483a; color: #ffd0c8; background: rgba(60,12,10,.92); }
+    #notify .note.good { border-color: #46d36a; color: #d4ffd9; }
+    #notify .note.fade { opacity: 0; }
+    #net-warn { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 30; width: min(560px, calc(100vw - 32px));
+      background: #2a1d0c; border: 1px solid #c8961e; border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; color: #ffe8c2;
+      box-shadow: 0 12px 40px rgba(0,0,0,.5); font-size: 14px; line-height: 1.4; }
+    #net-warn b { color: var(--gold); font-size: 16px; }
+    #poll-badge { color: #ffb14e; }
+    #net-status { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); z-index: 20; background: #3a2a10; border: 1px solid #c8961e;
+      color: #ffe2a8; padding: 8px 16px; border-radius: 8px; font-size: 14px; max-width: calc(100vw - 32px); text-align: center; }
+
+    /* ── Чат ───────────────────────────────────────────────────────── */
+    .chat { display: grid; gap: 6px; }
+    .chat-log { display: grid; gap: 3px; align-content: end; max-height: 150px; min-height: 60px; overflow-y: auto; padding: 8px 10px;
+      background: #0f131c; border: 1px solid #2c3344; border-radius: 8px; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+    .chat-log .none { color: var(--muted); font-style: italic; }
+    .chat-line b { font-weight: 700; margin-right: 4px; }
+    .chat-line b.west { color: #8db6ff; } .chat-line b.east { color: #ff9a8f; } .chat-line b.lobby { color: var(--gold); }
+    .chat-line time { color: #5f687c; font-size: 11px; margin-right: 5px; font-variant-numeric: tabular-nums; }
+    .chat-form { display: flex; gap: 6px; }
+    .chat-form input[type=text] { padding: 7px 10px; font-size: 14px; }
+    .chat-form .mini { padding: 0 12px; font-size: 14px; }
+    #chat-game { position: fixed; left: 12px; bottom: calc(var(--hud-h, 80px) + 12px); width: min(360px, calc(100vw - 24px)); z-index: 5; pointer-events: none; }
+    #chat-game .chat-log { background: rgba(10, 12, 18, .55); border-color: transparent; min-height: 0; max-height: 170px; overflow: hidden; text-shadow: 0 1px 2px #000; }
+    #chat-game .chat-line { transition: opacity .6s; }
+    #chat-game .chat-line.fade { opacity: 0; }
+    #chat-game .chat-line.old { display: none; }
+    #chat-game.open .chat-line.fade { opacity: 1; }
+    #chat-game.open .chat-line.old { display: block; }
+    #chat-game .chat-log:not(:has(.chat-line:not(.old))) { display: none; }
+    #chat-game.open .chat-log { display: grid !important; min-height: 60px; }
+    #chat-game.open .chat-log { overflow-y: auto; background: rgba(10, 12, 18, .8); }
+    #chat-game.open { pointer-events: auto; }
+    #chat-game .hint { font-size: 11px; color: #8d95a6; text-shadow: 0 1px 2px #000; }
+
+    /* ── Итоги ─────────────────────────────────────────────────────── */
+    #stats { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 8; width: min(860px, calc(100vw - 32px));
+      max-height: calc(100vh - 64px - var(--hud-h, 80px) - 24px); overflow: auto; background: rgba(14, 16, 24, .94); border: 1px solid #3a4258;
+      border-radius: 12px; padding: 16px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+    #stats header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    #stats h3 { font-family: var(--display); color: var(--gold); font-size: 22px; letter-spacing: 1px; }
+    #stats .result { font-size: 14px; color: var(--muted); }
+    #stats .result b.win { color: var(--ok); } #stats .result b.lose { color: #ef5a4a; }
+    .stats-wrap { overflow-x: auto; }
+    #stats table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+    #stats th { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; text-align: right; padding: 4px 8px; white-space: nowrap; }
+    #stats th:first-child, #stats td:first-child { text-align: left; }
+    #stats td { padding: 6px 8px; text-align: right; border-top: 1px solid #242a3a; white-space: nowrap; }
+    #stats tr.west td:first-child { border-left: 3px solid var(--west); } #stats tr.east td:first-child { border-left: 3px solid var(--east); }
+    #stats tr.me td { background: rgba(242,193,78,.07); }
+    #stats td .mvp { color: var(--gold); font-weight: 700; margin-left: 6px; font-size: 11px; }
+    #stats td.best { color: var(--gold); font-weight: 700; }
+    #stats .team-sum td { color: var(--muted); font-size: 12px; border-top: 1px solid #3a4258; }
+    #stats .close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+
     /* ── Карточка здания ───────────────────────────────────────────── */
     #binfo { position: absolute; right: 14px; top: 84px; width: 270px; background: rgba(14,17,26,.92); border: 1px solid #3a4460; border-top: 3px solid var(--tone, var(--gold));
       border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; font-size: 13px; z-index: 5; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
     #binfo.west { --tone: var(--west); } #binfo.east { --tone: var(--east); }
+    #cinfo { position: absolute; left: 14px; top: 84px; width: 270px; background: rgba(14,17,26,.92); border: 1px solid #3a4460; border-top: 3px solid var(--tone, var(--gold));
+      border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; font-size: 13px; z-index: 5; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+    #cinfo.west { --tone: var(--west); } #cinfo.east { --tone: var(--east); }
+    .ci-aura { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; border-top: 1px dashed #333b50; padding-top: 8px; }
+    .ci-aura b { font-size: 14px; } .ci-aura small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+    .ci-aura .btn { font-size: 13px; padding: 6px 10px; }
+    @media (max-width: 700px) { #cinfo { top: auto; bottom: 8px; left: 8px; width: min(270px, calc(100% - 16px)); } }
     .bi-head { display: flex; align-items: center; gap: 8px; }
     .bi-head b { font-family: var(--display); font-size: 16px; flex: 1; }
     .bi-stars { color: var(--gold); letter-spacing: 1px; font-size: 14px; }
@@ -166,6 +243,7 @@
             <div class="races">
               <button class="race" id="race-human" data-race="human" aria-pressed="true"><b>Люди</b><span>Рыцари, арбалетчики, жрецы и бомбометатели</span></button>
               <button class="race" id="race-undead" data-race="undead" aria-pressed="false"><b>Нежить</b><span>Гули, скелеты-стрелки, некроманты и мерзости</span></button>
+              <button class="race" id="race-orc" data-race="orc" aria-pressed="false"><b>Орда</b><span>Орки, духи-тотемы, демоны, йети и драконы</span></button>
             </div>
           </div>
           <div class="field" style="display:grid;gap:6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Формат
@@ -175,6 +253,7 @@
               <button class="mode" data-size="4" aria-pressed="false">4 × 4</button>
             </div>
           </div>
+          <button class="btn primary" id="rejoin-btn" hidden style="background:#1c5a2a;border-color:#46d36a">↩ Вернуться в партию</button>
           <button class="btn primary" id="quick-btn">Найти соперника</button>
           <div class="row">
             <select id="bot-level" aria-label="Сложность бота">
@@ -190,8 +269,13 @@
           </div>
         </section>
         <section class="panel" aria-label="Комнаты">
-          <h2>Открытые комнаты <small class="status"><span><span class="dot"></span>онлайн: <b id="online">0</b></span><span>ищут игру: <b id="searching">0</b></span></small></h2>
+          <h2>Открытые комнаты <small class="status"><span><span class="dot"></span>онлайн: <b id="online">0</b></span><span>ищут игру: <b id="searching">0</b></span><span id="poll-badge" hidden title="WebSocket не работает — игра идёт через обычные запросы">⚠ запасной режим</span></small></h2>
           <div class="rooms" id="room-list"><div class="empty">Подключение к серверу…</div></div>
+          <h2 style="font-size:15px">Общий чат</h2>
+          <div class="chat" id="chat-menu" data-scope="lobby">
+            <div class="chat-log" aria-live="polite"></div>
+            <form class="chat-form"><input type="text" maxlength="200" placeholder="Сообщение всем, кто в меню…" aria-label="Сообщение в общий чат" /><button class="mini" aria-label="Отправить">➤</button></form>
+          </div>
         </section>
       </div>
     </div>
@@ -229,6 +313,11 @@
         <div class="races" id="room-races">
           <button class="race" data-room-race="human" aria-pressed="true"><b>Люди</b><span>Сменить расу</span></button>
           <button class="race" data-room-race="undead" aria-pressed="false"><b>Нежить</b><span>Сменить расу</span></button>
+          <button class="race" data-room-race="orc" aria-pressed="false"><b>Орда</b><span>Сменить расу</span></button>
+        </div>
+        <div class="chat" id="chat-room" data-scope="room">
+          <div class="chat-log" aria-live="polite"></div>
+          <form class="chat-form"><input type="text" maxlength="200" placeholder="Сообщение в комнату…" aria-label="Сообщение в чат комнаты" /><button class="mini" aria-label="Отправить">➤</button></form>
         </div>
         <div class="row">
           <button class="btn primary" id="ready-btn">Готов</button>
@@ -246,29 +335,60 @@
       <div class="bi-owner" id="bi-owner"></div>
       <div class="bi-row">Прочность <b id="bi-hp"></b></div>
       <div class="bi-bar"><div id="bi-hpbar"></div></div>
-      <div class="bi-row">Следующий воин через <b id="bi-timer"></b></div>
+      <div class="bi-row"><span id="bi-timer-label">Следующий воин через</span> <b id="bi-timer"></b></div>
       <div class="bi-bar gold"><div id="bi-spawnbar"></div></div>
       <div class="bi-unit">
         <h4><span id="bi-unit-name" style="color:var(--ink);font-weight:700;font-size:14px"></span><span id="bi-unit-level"></span></h4>
         <dl class="bi-stats" id="bi-stats"></dl>
       </div>
       <button class="btn primary" id="bi-upgrade" style="font-size:15px;padding:10px">Улучшить</button>
+      <button class="btn" id="bi-antitank" hidden style="font-size:14px;padding:9px;border-color:#6b8f3a">Фаустпатроны</button>
       <div class="bi-note" id="bi-note"></div>
+    </div>
+    <section id="stats" hidden aria-label="Итоги">
+      <header><div><h3 id="stats-title">Итоги</h3><div class="result" id="stats-result"></div></div><button class="close" id="stats-close" aria-label="Закрыть">×</button></header>
+      <div class="stats-wrap"><table id="stats-table"></table></div>
+    </section>
+    <div class="chat" id="chat-game" data-scope="room">
+      <div class="chat-log" aria-live="polite"></div>
+      <form class="chat-form" hidden><input type="text" maxlength="200" placeholder="Сообщение всем в партии… (Esc — закрыть)" aria-label="Сообщение в чат партии" /></form>
+      <div class="hint" id="chat-hint">Enter — чат · Alt+клик — метка союзникам (Shift+Alt — «нужна помощь»)</div>
+    </div>
+    <div id="cinfo" hidden>
+      <div class="bi-head"><b>🏰 Ваш замок</b><button class="bi-close" id="ci-close" aria-label="Закрыть">×</button></div>
+      <div class="bi-row">Прочность <b id="ci-hp"></b></div>
+      <div class="ci-aura"><b>⚔ Аура «Сила» <span class="bi-stars" id="ci-damage-lv"></span></b><button class="btn" id="ci-damage"></button><small>Урон ×2 всем войскам команды на 15 секунд</small></div>
+      <div class="ci-aura"><b>⚡ Аура «Ярость» <span class="bi-stars" id="ci-speed-lv"></span></b><button class="btn" id="ci-speed"></button><small>Удары вдвое чаще у всех войск команды на 15 секунд</small></div>
+      <div class="ci-aura"><b>☢ Ракеты: <span id="ci-nukes"></span></b><button class="btn" id="ci-nuke"></button><small>Одна даётся каждый раунд, ещё можно купить. Запуск — клавиша R</small></div>
     </div>
     <div id="hud">
       <div id="resources">
         <div class="res"><span>🪙</span><span class="val" id="gold">0</span><span style="color:#888;font-size:.8rem">золото</span></div>
       </div>
       <div id="build-menu"></div>
+      <button class="strike-btn" id="strike-btn" title="Горячая клавиша: Q. Один раз за раунд"><b>⚡ Суперудар (Q)</b><span id="strike-note">1 раз за раунд</span></button>
+      <button class="strike-btn" id="militia-btn" hidden title="Клавиша V: 15 защитников у замка, раз за раунд"><b>🛡 Ополчение (V)</b><span>15 защитников у замка</span></button>
+      <button class="strike-btn nuke" id="counter-btn" hidden title="Клавиша X: своей ракетой навстречу вражеской"><b>☢ Сбить ракету (X)</b><span>потратит одну вашу</span></button>
+      <button class="strike-btn nuke" id="nuke-btn" title="Горячая клавиша: R. Один раз за раунд, в любую точку"><b>☢ Ракета (R)</b><span id="nuke-note">1 раз за раунд</span></button>
       <span id="tip"></span>
       <div class="hud-right">
-        <button class="hud-btn green" id="rematch-btn" hidden>Реванш</button>
+        <button class="hud-btn" id="castle-btn" title="Ауры и ракеты (C)">🏰 Замок</button>
+        <button class="hud-btn" id="mute-btn" aria-label="Звук">🔊</button>
+        <button class="hud-btn" id="stats-btn" hidden>Итоги</button>
+        <button class="hud-btn green" id="rematch-btn" hidden>В комнату</button>
         <button class="hud-btn" id="leave-game-btn">В меню</button>
       </div>
     </div>
   </div>
 
   <div class="toast" id="toast" hidden></div>
+  <div id="notify" aria-live="polite"></div>
+  <div id="net-warn" hidden role="alert">
+    <b>WebSocket у вас не работает</b>
+    <span>Соединение с игрой не открывается — чаще всего его блокирует антивирус (веб-защита), прокси или провайдер. Можно включить запасной режим: игра пойдёт через обычные запросы, но с задержками. Когда WebSocket заработает, игра сама вернётся на него.</span>
+    <div class="row"><button class="btn primary" id="net-warn-poll">Включить запасной режим</button><button class="btn" id="net-warn-close">Подождать ещё</button></div>
+  </div>
+  <div id="net-status" hidden role="status">Нет связи с сервером — переподключаемся… Ваше место в партии сохранено.</div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "assets": "node scripts/build-assets.mjs",
-    "build:preview": "vite build --config vite.preview.config.ts && node scripts/pack-preview.mjs"
+    "build:preview": "vite build --config vite.preview.config.ts && node scripts/pack-preview.mjs",
+    "sounds": "node scripts/build-sounds.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.0",
